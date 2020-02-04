@@ -36,7 +36,7 @@ namespace LCU.State.API.UserManagement
             {
                 log.LogInformation($"Requesting user access...");
 
-                //await mgr.EditTopList(reqData.TopList);
+                await mgr.RequestAuthorization(reqData.UserID, reqData.EnterpriseKey);
 
                 return await mgr.WhenAll(
                 );

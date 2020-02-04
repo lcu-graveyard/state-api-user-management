@@ -71,6 +71,22 @@ namespace LCU.State.API.UserManagement.Harness
                 DatabaseClientTTLMinutes = Environment.GetEnvironmentVariable("LCU-DATABASE-CLIENT-TTL").As<int>(60)
             });
         }
+
+
+        public virtual async Task<UserManagementState> RequestAuthorization(string userID, Guid enterpriseID)
+        {
+            // Create MD5 hash of request with UserID and EnterpriseID
+
+            // Query graph for admins of enterprise ID
+
+            // Build a link/text body
+
+            // Send email (call LCU.Personas) 
+
+            // If successful, adjust state to reflect that a request was sent for this enterprise by this user
+
+            return state;
+        }
     }
 
 }
