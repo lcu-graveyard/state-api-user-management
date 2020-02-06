@@ -6,8 +6,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="LCU.Graphs" Version="1.130.20030.4" />
-    <PackageReference Include="LCU.StateAPI" Version="1.106.20030.2" />
+    <PackageReference Include="LCU.Graphs" Version="1.133.20035.2" />
+    <PackageReference Include="LCU.StateAPI" Version="1.109.20035.5" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc" Version="2.2.0" />
     <PackageReference Include="Microsoft.Azure.WebJobs" Version="3.0.14" />
     <PackageReference Include="Microsoft.Azure.WebJobs.Extensions" Version="3.0.6" />

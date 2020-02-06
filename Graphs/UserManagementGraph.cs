@@ -34,13 +34,34 @@ namespace LCU.State.API.UserManagement.Graphs
             {
                 var userId = await ensureUser(g, email, entAPIKey);
 
-                var query = g.V(userId)
-                    .Out(UserManagementGraphConstants.OwnsEdgeName)
+                var query = g.V()
                     .HasLabel(UserManagementGraphConstants.EnterpriseVertexName);
 
                 var results = await Submit<Enterprise>(query);
 
                 return results.ToList();
+            });
+        }
+
+        public virtual async Task<List<string>> ListAdmins(string email, string entAPIKey, string adminEntId)
+        {
+            return await withG(async (client, g) =>
+            {
+                var admins = new List<string>();
+
+                var userId = await ensureUser(g, email, entAPIKey);
+
+                var query = g.V().HasLabel(UserManagementGraphConstants.AccessCardVertexName)
+                                .Has("EnterpriseAPIKey", $"{adminEntId}")
+                                .Has("AccessConfigurationType", "LCU")
+                                .Has("IsAdmin","true");
+
+                var results = await Submit<AccessCard>(query);
+
+                foreach (var result in results)
+                    admins.Add(result.Registry.Split('|')[1]);
+
+                return admins;
             });
         }
 
