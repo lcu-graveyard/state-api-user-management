@@ -25,6 +25,8 @@ namespace LCU.State.API.UserManagement.Graphs
 
         public const string UserVertexName = "User";
 
+        public const string AccessCardVertexName = "AccessCard";
+
     }
 
 }

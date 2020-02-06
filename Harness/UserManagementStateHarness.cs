@@ -21,7 +21,10 @@ using LCU.Personas.Client.Applications;
 using Microsoft.AspNetCore.Http.Internal;
 using System.IO;
 using LCU.Personas.Client.Enterprises;
+using LCU.Personas.Client.Security;
+using LCU.Personas.Security;
 using LCU;
+using Newtonsoft.Json;
 
 namespace LCU.State.API.UserManagement.Harness
 {
@@ -36,11 +39,12 @@ namespace LCU.State.API.UserManagement.Harness
 
         protected readonly EnterpriseManagerClient entMgr;
 
+        protected readonly SecurityManagerClient secMgr;
+
         #endregion
         public UserManagementStateHarness(HttpRequest req, ILogger log, UserManagementState state)
             : base(req, log, state)
         {
-            // TODO: This needs to be injected , registered at startup as a singleton
             umGraph = new UserManagementGraph(new GremlinClientPoolManager(
                 new ApplicationProfileManager(
                     Environment.GetEnvironmentVariable("LCU-DATABASE-CLIENT-POOL-SIZE").As<int>(4),
@@ -60,6 +64,9 @@ namespace LCU.State.API.UserManagement.Harness
 
             entMgr = req.ResolveClient<EnterpriseManagerClient>(logger);
 
+
+            secMgr = req.ResolveClient<SecurityManagerClient>(logger);
+
             var enterprise = entMgr.GetEnterprise(details.EnterpriseAPIKey).GetAwaiter().GetResult();
 
             enterpriseId = enterprise.Model.ID;
@@ -72,19 +79,62 @@ namespace LCU.State.API.UserManagement.Harness
             });
         }
 
-
-        public virtual async Task<UserManagementState> RequestAuthorization(string userID, Guid enterpriseID)
+        public virtual async Task<UserManagementState> RequestAuthorization(string userID, string enterpriseID, string hostName)
         {
-            // Create MD5 hash of request with UserID and EnterpriseID
+            // Create an access request
+            var accessRequest = new AccessRequest()
+            {
+                User = userID,
+                EnterpriseID = enterpriseID
+            };
+
+            // Create JToken to attached to metadata model
+            var model = new MetadataModel();
+            model.Metadata.Add(new KeyValuePair<string, JToken>("AccessRequest", JToken.Parse(Newtonsoft.Json.JsonConvert.SerializeObject(accessRequest))));
+
+            // Create token model - is including the access request payload redundant?? 
+            var tokenModel = new CreateTokenModel()
+            {
+                Payload = model,
+                UserEmail = userID,
+                OrganizationID = enterpriseID,
+                Encrypt = true
+            };
+
+            // Encrypt user email and enterpries ID, generate token
+            var response = await secMgr.CreateToken("RequestAccessToken", tokenModel);
 
             // Query graph for admins of enterprise ID
+            var admins = umGraph.ListAdmins(userID, details.EnterpriseAPIKey, enterpriseID);
 
-            // Build a link/text body
+            // Build grant/deny links and text body
+            if (response != null)
+            {
+                string grantLink = $"<a href=\"{hostName}/grant/token?={response.Model}\">Grant Access</a>";
+                string denyLink = $"<a href=\"{hostName}/deny/token?={response.Model}\">Deny Access</a>";
+                string emailHtml = $"A user has requested access to this Organization : {grantLink} {denyLink}";
 
-            // Send email (call LCU.Personas) 
+                // Send email from app manager client 
+                foreach (string admin in admins.Result)
+                {
+                    var email = new AccessRequestEmail()
+                    {
+                        Content = emailHtml,
+                        EmailFrom = "admin@fathym.com",
+                        EmailTo = admin,
+                        User = userID,
+                        Subject = "Access authorization requested",
+                        EnterpriseID = enterpriseID
+                    };
+
+                    var emailModel = new MetadataModel();
+                    model.Metadata.Add(new KeyValuePair<string, JToken>("AccessRequestEmail", JToken.Parse(JsonConvert.SerializeObject(email))));
+
+                    appMgr.SendAccessRequestEmail(model, details.EnterpriseAPIKey);
+                }
+            }
 
             // If successful, adjust state to reflect that a request was sent for this enterprise by this user
-
             return state;
         }
     }
